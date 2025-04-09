@@ -3,7 +3,6 @@ import './App.css';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
-const GRID_ROWS = 16;
 const GRID_COLS = 24;
 const CIRCLE_RADIUS = 25;
 
@@ -128,12 +127,6 @@ const App: React.FC = () => {
     initialSpots.current = [...spotsPerImage[currentIndex]];
   };
 
-  const handleGroupDragStart = (e: React.MouseEvent) => {
-    setDragMode('move');
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    initialSpots.current = [...spotsPerImage[currentIndex]];
-  };
-
   const handleMouseMove = (e: MouseEvent) => {
     if (!dragMode) return;
     const dx = e.clientX - dragStart.current.x;
@@ -199,10 +192,10 @@ const App: React.FC = () => {
         set_index: parseInt(set_index),
         plate_num: parseInt(plate_num),
         spot_location,
-        from_block,
-        estradiol_nm,
-        threeat_mm,
-        foa,
+        from_block: parseInt(from_block),
+        estradiol_nm: parseFloat(estradiol_nm),
+        threeat_mm: parseFloat(threeat_mm),
+        foa: parseFloat(foa),
         selection
       };
     });
@@ -317,52 +310,10 @@ const App: React.FC = () => {
     };
   }, [dragMode]);
 
-  const exportAllCoordinates = () => {
-    const exportData = spotsPerImage.map((spots, index) => {
-      const coordinates = spots.map(s => {
-        const row = String.fromCharCode(65 + Math.floor(s.id / GRID_COLS));
-        const col = (s.id % GRID_COLS) + 1;
-        const well = `${row}${col}`;
-        return { id: s.id + 1, x: Math.round(s.x), y: Math.round(s.y), well };
-      });
-      return { plate: index + 1, coordinates };
-    });
   
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'all_well_coordinates.json';
-    link.click();
-  };
+  
 
-  const exportAllCoordinatesAsCSV = () => {
-    const headers = ['plate', 'well', 'x_index', 'y_index', 'well_position'];
-    const rows = [headers.join(',')];
   
-    for (const [plateIndex, spots] of spotsPerImage.entries()) {
-      spots.forEach((s) => {
-        const row = String.fromCharCode(65 + Math.floor(s.id / GRID_COLS));
-        const col = (s.id % GRID_COLS) + 1;
-        const well = `${row}${col}`;
-        const line = [
-          plateIndex + 1,
-          well,
-          Math.round(s.x),
-          Math.round(s.y),
-          s.id + 1
-        ].join(',');
-        rows.push(line);
-      });
-    }
-  
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'well_coordinates.csv';
-    link.click();
-  };
 
   const getSetForSpot = (id: number): 'A' | 'B' | 'C' | 'D' => {
     const row = Math.floor(id / GRID_COLS);
@@ -396,14 +347,13 @@ const App: React.FC = () => {
 
       const plateNum = plateIndex + 1;
       const meta = metadata.find(m => m.plate_num === plateNum && m.spot_location === 'A');
-      const cleanSelection = meta.selection.replace(/[^\w.-]/g, '');
+      const cleanSelection = meta?.selection?.replace(/[^\w.-]/g, '') || 'unknown';
       const plateName = meta
         ? `P${plateNum}_B${meta.from_block}_${Number(meta.estradiol_nm).toFixed(1)}E_${Number(meta.threeat_mm).toFixed(1)}AT_${Number(meta.foa).toFixed(2)}F_${cleanSelection}.jpg`
         : `plate_${plateNum}.jpg`;
 
       const imageData = processedImages[plateIndex];
       const base64 = imageData.split(',')[1];
-      const mime = imageData.split(',')[0].split(':')[1].split(';')[0];
       zip.file(`images/${plateName}`, base64, { base64: true });
       if (!zip.files['combined_coordinates.csv']) {
         zip.file('combined_coordinates.csv', `${row.join('\n')}\n`);
