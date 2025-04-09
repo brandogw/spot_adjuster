@@ -340,7 +340,7 @@ const App: React.FC = () => {
     const headers = ['plate', 'well', 'x_index', 'y_index', 'well_position'];
     const rows = [headers.join(',')];
   
-    for (const [plateIndex, spots] of spotsPerImage.entries()) {
+    spotsPerImage.forEach((spots, plateIndex) => {
       spots.forEach((s) => {
         const row = String.fromCharCode(65 + Math.floor(s.id / GRID_COLS));
         const col = (s.id % GRID_COLS) + 1;
@@ -354,7 +354,7 @@ const App: React.FC = () => {
         ].join(',');
         rows.push(line);
       });
-    }
+    });
   
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -383,7 +383,7 @@ const App: React.FC = () => {
   const exportAsZip = async () => {
     const zip = new JSZip();
 
-    for (const [plateIndex, spots] of spotsPerImage.entries()) {
+    spotsPerImage.forEach((spots, plateIndex) => {
       const row = ['plate,well,x_index,y_index,well_position'];
       spots.forEach((s) => {
         const r = String.fromCharCode(65 + Math.floor(s.id / GRID_COLS));
@@ -408,14 +408,10 @@ const App: React.FC = () => {
       if (!zip.files['combined_coordinates.csv']) {
         zip.file('combined_coordinates.csv', `${row.join('\n')}\n`);
       } else {
-        const fileRef = zip.file('combined_coordinates.csv');
-        if (fileRef) {
-          const current = await fileRef.async('string');
-          zip.remove('combined_coordinates.csv');
-          zip.file('combined_coordinates.csv', current + '\n' + row.slice(1).join('\n'));
-        }
+        const current = zip.file('combined_coordinates.csv').async('string');
+        zip.file('combined_coordinates.csv', current.then(content => content + '\n' + row.slice(1).join('\n')));
       }
-    }
+    });
     
     if (spotMetadata.length > 0) {
       const headers = Object.keys(spotMetadata[0]);
